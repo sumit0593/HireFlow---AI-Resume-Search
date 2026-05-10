@@ -203,9 +203,15 @@ class HireFlowUI:
         st.sidebar.header("System Status")
         
         if self.system_manager.is_ready():
-            hybrid_indexer = self.system_manager.get_component('hybrid_indexer')
-            if hybrid_indexer:
-                st.sidebar.write(f"**Resumes Indexed:** {len(hybrid_indexer.resume_texts)}")
+            vector_store = self.system_manager.get_component('vector_store')
+            indexed_count = 0
+            if vector_store:
+                try:
+                    stats = cached_pinecone_stats(_vector_store=vector_store)
+                    indexed_count = stats.get('total_vector_count', 0)
+                except Exception:
+                    pass
+            st.sidebar.write(f"**Resumes Indexed:** {indexed_count}")
             st.sidebar.write("**System:** Ready")
         else:
             st.sidebar.write("**System:** Initializing...")
