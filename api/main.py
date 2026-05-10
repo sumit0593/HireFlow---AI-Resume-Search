@@ -90,10 +90,11 @@ class StatusResponse(BaseModel):
 # ---------------------------------------------------------------------------
 
 @app.post("/index", response_model=IndexResponse, summary="Index all resumes in data/resumes/")
-def index_resumes():
-    """Load all PDFs from data/resumes/ and (re-)index them in BM25 + Pinecone."""
+def index_resumes(use_llm: bool = True):
+    """Load all PDFs from data/resumes/ and (re-)index them in BM25 + Pinecone.
+    If use_llm=true is passed, it uses Gemini to extract rich metadata."""
     indexer = get_indexer()
-    resumes = load_resumes(str(_DATA_RESUMES_DIR))
+    resumes = load_resumes(str(_DATA_RESUMES_DIR), use_llm=use_llm)
     if not resumes:
         raise HTTPException(status_code=404, detail="No resume PDFs found in data/resumes/")
     ok = indexer.index_resumes(resumes)

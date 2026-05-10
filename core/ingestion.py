@@ -31,7 +31,8 @@ def _try_parse_resume(text: str, candidate_id: str) -> dict:
 
 def load_resumes(directory: str, use_llm: bool = False) -> list[Document]:
     """Load all resume PDFs from directory.
-    Defaults to not using LLM to avoid rate limits."""
+    If use_llm=True, parses them with Gemini to extract rich metadata (skills, location, experience).
+    Defaults to use_llm=False to avoid API rate limits during bulk UI startup."""
     resumes = []
 
     if not os.listdir(directory):
