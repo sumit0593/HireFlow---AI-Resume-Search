@@ -44,7 +44,7 @@ def get_embeddings() -> Optional[GoogleGenerativeAIEmbeddings]:    #Optional[Hug
 #         )
 
         return GoogleGenerativeAIEmbeddings(
-            model="models/embedding-001",  # Google's text embedding model
+            model="gemini-embedding-001",  # Google's text embedding model
             google_api_key=GOOGLE_API_KEY,
         )
 

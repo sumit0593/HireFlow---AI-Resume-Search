@@ -29,9 +29,9 @@ def _try_parse_resume(text: str, candidate_id: str) -> dict:
         logger.warning(f"Resume parsing failed for candidate {candidate_id}: {e}")
         return {}
 
-def load_resumes(directory: str) -> list[Document]:
-    """Load all resume PDFs from directory, parse them with Gemini, and
-    return Document objects with rich metadata (skills, location, experience)."""
+def load_resumes(directory: str, use_llm: bool = False) -> list[Document]:
+    """Load all resume PDFs from directory.
+    Defaults to not using LLM to avoid rate limits."""
     resumes = []
 
     if not os.listdir(directory):
@@ -48,7 +48,7 @@ def load_resumes(directory: str) -> list[Document]:
                 candidate_id = f"c_{Path(file).stem}"
                 fallback_name = Path(file).stem.replace('_', ' ').title()
 
-                parsed = _try_parse_resume(text, candidate_id)
+                parsed = _try_parse_resume(text, candidate_id) if use_llm else {}
 
                 doc = Document(
                     page_content = text,

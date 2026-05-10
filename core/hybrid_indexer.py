@@ -51,11 +51,11 @@ class HybridIndexer:
     
     def search_resumes(self, query: str, top_k: int = 5) -> List[Dict[str, Any]]:
         """Search resumes using both BM25 and vector search, then combine results"""
-        if not self.bm25_resumes:
-            return []
         try:
-            query_tokens = query.lower().split()
-            bm25_scores = [float(s) for s in self.bm25_resumes.get_scores(query_tokens)]
+            bm25_scores = []
+            if self.bm25_resumes:
+                query_tokens = query.lower().split()
+                bm25_scores = [float(s) for s in self.bm25_resumes.get_scores(query_tokens)]
 
             vector_results = []
             if self.vector_store.is_ready():

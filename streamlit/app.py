@@ -27,6 +27,31 @@ DATA_RESUMES_DIR = project_root / "data" / "resumes"
 # Page config
 st.set_page_config(page_title="HireFlow", page_icon="🎯", layout="wide")
 
+@st.cache_resource(show_spinner=False)
+def cached_load_resumes(resume_dir):
+    return load_resumes(resume_dir)
+
+@st.cache_resource(show_spinner=False)
+def build_bm25_cached(resumes):
+    texts = []
+    metadata = []
+
+    for r in resumes:
+        text = r.page_content.strip()
+        if text:
+            texts.append(text.lower())
+            metadata.append(r.metadata)
+
+    tokenized = [t.split() for t in texts]
+    bm25 = BM25Okapi(tokenized)
+
+    return bm25, texts, metadata
+
+
+@st.cache_data(ttl=300, show_spinner=False)
+def cached_pinecone_stats(_vector_store):
+    return _vector_store.get_stats()
+
 # ============================================================================
 # SYSTEM INITIALIZATION (Clean, minimal)
 # ============================================================================
@@ -65,32 +90,38 @@ class SystemManager:
             # job_parser = JobParser()
             reranker = ReRanker()
             memory_rag = MemoryRAG()
+
+            # Prevent repeated initialization
+            if "resume_index_initialized" not in st.session_state:
+                st.session_state.resume_index_initialized = False
             
             # Auto-index existing resumes using core module.
             # If Pinecone already contains vectors, skip re-uploading to avoid
             # redundant embedding work on every Streamlit cold start.
             # BM25 is always rebuilt from local PDFs because it lives in memory.
-            if hybrid_indexer and vector_store_ready:
+            if hybrid_indexer and vector_store_ready and not st.session_state.resume_index_initialized:
+
                 try:
-                    existing_resumes = load_resumes(str(DATA_RESUMES_DIR))
-                    if existing_resumes:
-                        pinecone_stats = vector_store.get_stats()
-                        already_indexed = pinecone_stats.get("total_vector_count", 0) > 0
-                        if already_indexed:
-                            # Rebuild BM25 only; skip Pinecone upsert
-                            from rank_bm25 import BM25Okapi
-                            hybrid_indexer.resume_texts = []
-                            hybrid_indexer.resume_metadata = []
-                            for r in existing_resumes:
-                                if r.page_content.strip():
-                                    hybrid_indexer.resume_texts.append(r.page_content.lower())
-                                    hybrid_indexer.resume_metadata.append(r.metadata)
-                            tokenized = [t.split() for t in hybrid_indexer.resume_texts]
-                            hybrid_indexer.bm25_resumes = BM25Okapi(tokenized)
-                            st.info(f"BM25 rebuilt for {len(existing_resumes)} resumes (Pinecone already populated)")
-                        else:
-                            hybrid_indexer.index_resumes(existing_resumes)
-                            st.success(f"Indexed {len(existing_resumes)} resumes into Pinecone and BM25")
+                    pinecone_stats = cached_pinecone_stats(_vector_store=vector_store)
+                    already_indexed = pinecone_stats.get("total_vector_count", 0) > 0
+
+                    if already_indexed:
+                        # Skip loading local resumes completely to avoid blocking UI on startup
+                        pass
+                    else:
+                        with st.spinner("Indexing resumes for the first time..."):
+                            existing_resumes = cached_load_resumes(str(DATA_RESUMES_DIR))
+                            if existing_resumes:
+                                bm25, texts, metadata = build_bm25_cached(existing_resumes)
+                                hybrid_indexer.bm25_resumes = bm25
+                                hybrid_indexer.resume_texts = texts
+                                hybrid_indexer.resume_metadata = metadata
+                                
+                                hybrid_indexer.index_resumes(existing_resumes)
+                                st.success(f"Indexed {len(existing_resumes)} resumes into Pinecone")
+
+                    st.session_state.resume_index_initialized = True
+
                 except Exception as e:
                     st.warning(f"Auto-indexing failed: {e}")
             
@@ -573,13 +604,18 @@ class HireFlowUI:
 # ============================================================================
 # APPLICATION ENTRY POINT
 # ============================================================================
+@st.cache_resource(show_spinner="Initializing system...")
+def get_global_system_manager():
+    manager = SystemManager()
+    ok = manager.initialize()
+    if not ok:
+        st.error("System initialization failed. Please check configuration.")
+    return manager
+
 def get_or_create_system_manager():
     # Use session_state to persist across reruns
     if "system_manager" not in st.session_state:
-        st.session_state["system_manager"] = SystemManager()
-        ok = st.session_state["system_manager"].initialize()
-        if not ok:
-            st.error("System initialization failed. Please check configuration.")
+        st.session_state["system_manager"] = get_global_system_manager()
     return st.session_state["system_manager"]
 
 def main():
