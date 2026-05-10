@@ -8,6 +8,7 @@ import asyncio
 import logging
 from typing import Optional
 
+# from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from utils.utils import is_quota_error
 from utils.config import GOOGLE_API_KEY
@@ -30,7 +31,7 @@ def _ensure_event_loop() -> None:
         asyncio.set_event_loop(loop)
 
 
-def get_embeddings() -> Optional[GoogleGenerativeAIEmbeddings]:
+def get_embeddings() -> Optional[GoogleGenerativeAIEmbeddings]:    #Optional[HuggingFaceEmbeddings]
     """Create Google embedding model with quota error handling.
 
     Returns `None` if embeddings cannot be created (quota or other errors).
@@ -38,8 +39,12 @@ def get_embeddings() -> Optional[GoogleGenerativeAIEmbeddings]:
     try:
         _ensure_event_loop()
 
+#         return HuggingFaceEmbeddings(
+#             model_name="sentence-transformers/all-MiniLM-L6-v2",
+#         )
+
         return GoogleGenerativeAIEmbeddings(
-            model="gemini-embedding-001",  # Google's text embedding model
+            model="models/embedding-001",  # Google's text embedding model
             google_api_key=GOOGLE_API_KEY,
         )
 

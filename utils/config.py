@@ -11,7 +11,7 @@ class AppConfig(BaseSettings):
 
     PINECONE_API_KEY: str = Field(default="", env="PINECONE_API_KEY")
     PINECONE_INDEX_NAME: str = Field(default="hireflow", env="PINECONE_INDEX_NAME")
-    PINECONE_DIMENSION: int = Field(default=3072, env="PINECONE_DIMENSION")
+    PINECONE_DIMENSION: int = Field(default=3072, env="PINECONE_DIMENSION") #384
     PINECONE_METRIC: str = Field(default="cosine", env="PINECONE_METRIC")
 
     GOOGLE_API_KEY: str = Field(default="", env="GOOGLE_API_KEY")
